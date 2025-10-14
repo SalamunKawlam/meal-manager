@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const datePicker = document.getElementById('date-picker');
   const mealsContainer = document.getElementById('meals-container');
   const totalBookingsEl = document.getElementById('total-bookings');
-  const webAppUrl = 'https://script.google.com/macros/s/AKfycbwNaneUpaqOqCnX18UuKvEuj73RjHnILCUUIRXIOe2_pJDo_bW8ppMyDF8q8YO4KKfO/exec';
+  const webAppUrl = 'https://script.google.com/macros/s/AKfycbzT89kqZQbnadMynPGQEw0NivoylrHNe5e2QR9vrXHJiBgzJ_vf4QfdzaYEEL-JfOM/exec';
 
   // Default to today's date (yyyy-mm-dd)
   const today = new Date();
