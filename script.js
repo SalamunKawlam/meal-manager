@@ -13,7 +13,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const formatDateTime = (timestamp) => {
     if (!timestamp) return '';
     const date = new Date(timestamp);
-    return `${date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })} — ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`;
+    const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    // Convert am/pm to AM/PM
+    return `${date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}, ${timeString.replace(/([ap])m/i, (match) => match.toUpperCase())}`;
   };
 
   // Render cards
@@ -44,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const submission = formatDateTime(meal.timestamp);
       mealContent.innerHTML = `
         <strong>${meal.name}</strong><br>
-        <small>Submitted on ${submission}</small>
+        <small>Submitted: ${submission}</small>
       `;
       card.appendChild(mealContent);
 
