@@ -2,20 +2,26 @@ document.addEventListener('DOMContentLoaded', () => {
   const datePicker = document.getElementById('date-picker');
   const mealsContainer = document.getElementById('meals-container');
   const totalBookingsEl = document.getElementById('total-bookings');
-  const webAppUrl =
-    'https://script.google.com/macros/s/AKfycbwNaneUpaqOqCnX18UuKvEuj73RjHnILCUUIRXIOe2_pJDo_bW8ppMyDF8q8YO4KKfO/exec';
+  const webAppUrl = 'https://script.google.com/macros/s/AKfycbwNaneUpaqOqCnX18UuKvEuj73RjHnILCUUIRXIOe2_pJDo_bW8ppMyDF8q8YO4KKfO/exec';
 
-  // --- Initial setup ---
+  // Default to today's date (yyyy-mm-dd)
   const today = new Date();
   datePicker.value = today.toISOString().split('T')[0];
 
   let allMeals = [];
   let dataLoaded = false;
-  let isLoading = false;
 
   // ---------- Helpers ----------
 
-  // Stable "YYYY-MM-DD" key in Asia/Dhaka
+  // Safely parse input date in "YYYY-MM-DD" format
+  const parseISODate = (isoString) => {
+    const parts = isoString.split('-'); // [yyyy, mm, dd]
+    if (parts.length !== 3) return new Date(isoString); // fallback
+    const [year, month, day] = parts.map(Number);
+    return new Date(year, month - 1, day); // local date
+  };
+
+  // Convert any date to "YYYY-MM-DD" in Asia/Dhaka timezone
   const getDhakaKey = (date) => {
     const d = new Date(date);
     const fmt = new Intl.DateTimeFormat('en-CA', {
@@ -24,10 +30,10 @@ document.addEventListener('DOMContentLoaded', () => {
       month: '2-digit',
       day: '2-digit',
     });
-    return fmt.format(d);
+    return fmt.format(d); // → "2025-10-14"
   };
 
-  // Format readable submission date/time (Column A)
+  // Format readable submission date+time from timestamp (Column A)
   const formatDateTime = (timestamp) => {
     if (!timestamp) return '';
     const d = new Date(timestamp);
@@ -46,19 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return `${dateStr}, ${timeStr.replace(/([ap])m/i, (m) => m.toUpperCase())}`;
   };
 
-  // ---------- UI helpers ----------
-
-  const showLoading = (message = 'Loading data...') => {
-    mealsContainer.innerHTML = `<div class="card no-meals-card"><p>${message}</p></div>`;
-    totalBookingsEl.textContent = '...';
-  };
-
-  const showError = (message) => {
-    mealsContainer.innerHTML = `<div class="card no-meals-card"><p>${message}</p></div>`;
-    totalBookingsEl.textContent = '0';
-  };
-
-  // ---------- Render ----------
+  // ---------- Render cards ----------
 
   const renderMeals = (meals) => {
     mealsContainer.innerHTML = '';
@@ -80,70 +74,82 @@ document.addEventListener('DOMContentLoaded', () => {
         const card = document.createElement('div');
         card.className = 'card meal-card';
 
-        const chip = document.createElement('span');
-        chip.className = 'serial-chip';
-        chip.textContent = index + 1;
-        card.appendChild(chip);
+        const serialChip = document.createElement('span');
+        serialChip.className = 'serial-chip';
+        serialChip.textContent = index + 1;
+        card.appendChild(serialChip);
 
-        const info = document.createElement('p');
-        info.innerHTML = `
+        const mealContent = document.createElement('p');
+        const submission = formatDateTime(meal.timestamp);
+        mealContent.innerHTML = `
           <strong>${meal.name || ''}</strong><br>
-          <small>Submitted: ${formatDateTime(meal.timestamp)}</small>
+          <small>Submitted: ${submission}</small>
         `;
-        card.appendChild(info);
+        card.appendChild(mealContent);
+
         mealsContainer.appendChild(card);
       });
   };
 
-  // ---------- Filtering ----------
+  // ---------- Filter logic ----------
 
   const filterMealsByDate = (selectedDate) => {
-    if (!dataLoaded) return showLoading();
+    if (!dataLoaded) {
+      mealsContainer.innerHTML = '<p>Loading data...</p>';
+      totalBookingsEl.textContent = '...';
+      return;
+    }
 
-    const picked = new Date(selectedDate);
-    if (isNaN(picked)) return showError('Invalid date selected.');
+    // Always parse manually to avoid locale issues on mobile
+    const picked = parseISODate(selectedDate);
+    if (isNaN(picked)) {
+      mealsContainer.innerHTML = '<p>Invalid date selected.</p>';
+      totalBookingsEl.textContent = '0';
+      return;
+    }
 
     const pickedKey = getDhakaKey(picked);
+
     const filtered = allMeals.filter((meal) => {
       if (!meal.bookingDate) return false;
-      return getDhakaKey(meal.bookingDate) === pickedKey;
+      const bookingKey = getDhakaKey(meal.bookingDate);
+      return bookingKey === pickedKey;
     });
 
-    console.log('📅 Selected:', selectedDate, '→', pickedKey, 'Matched:', filtered.length);
+    console.log('📅 Selected:', selectedDate, '→ Key:', pickedKey, 'Matched:', filtered.length);
     renderMeals(filtered);
   };
 
-  // ---------- Data fetch (JSONP) ----------
+  // ---------- Load data from Apps Script (JSONP) ----------
 
-  const loadAllMeals = (retry = 0) => {
-    if (isLoading) return;
-    isLoading = true;
-    showLoading();
+  const loadAllMeals = () => {
+    mealsContainer.innerHTML = '<p>Loading data...</p>';
+    totalBookingsEl.textContent = '...';
 
-    const cbName = 'jsonp_cb_' + Math.round(Math.random() * 1e6);
+    const callbackName = 'jsonp_cb_' + Math.round(Math.random() * 1e6);
 
-    window[cbName] = (data) => {
-      isLoading = false;
+    window[callbackName] = (data) => {
       if (!Array.isArray(data)) {
-        if (retry < 1) return setTimeout(() => loadAllMeals(retry + 1), 1500);
-        return showError('Error loading data. Please check your Web App deployment.');
+        mealsContainer.innerHTML = '<p>Invalid data received.</p>';
+        totalBookingsEl.textContent = '0';
+        return;
       }
 
       allMeals = data;
       dataLoaded = true;
-      console.log('✅ Data fetched:', allMeals.length);
+      console.log('✅ Data fetched:', allMeals.length, 'rows');
       filterMealsByDate(datePicker.value);
 
       try { document.body.removeChild(script); } catch {}
-      delete window[cbName];
+      delete window[callbackName];
     };
 
     const script = document.createElement('script');
-    script.src = `${webAppUrl}?callback=${cbName}`;
+    script.src = `${webAppUrl}?callback=${callbackName}`;
     script.onerror = () => {
-      isLoading = false;
-      if (retry < 1) return setTimeout(() => loadAllMeals(retry + 1), 1500);
-      showError('Error loading data. Please check your Web App deployment.');
+      mealsContainer.innerHTML = '<p>Error loading data. Check your Web App deployment.</p>';
+      totalBookingsEl.textContent = '0';
+      delete window[callbackName];
     };
     document.body.appendChild(script);
   };
