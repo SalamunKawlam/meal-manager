@@ -4,60 +4,38 @@ document.addEventListener('DOMContentLoaded', () => {
   const totalBookingsEl = document.getElementById('total-bookings');
   const webAppUrl = 'https://script.google.com/macros/s/AKfycbzT89kqZQbnadMynPGQEw0NivoylrHNe5e2QR9vrXHJiBgzJ_vf4QfdzaYEEL-JfOM/exec';
 
-  // Default to today's date (yyyy-mm-dd)
+  // Default today's date (yyyy-mm-dd)
   const today = new Date();
   datePicker.value = today.toISOString().split('T')[0];
 
   let allMeals = [];
   let dataLoaded = false;
 
-  // ---------- Helpers ----------
-
-  // Safely parse input date in "YYYY-MM-DD" format
-  const parseISODate = (isoString) => {
-    const parts = isoString.split('-'); // [yyyy, mm, dd]
-    if (parts.length !== 3) return new Date(isoString); // fallback
-    const [year, month, day] = parts.map(Number);
-    return new Date(year, month - 1, day); // local date
+  // Parse input date safely (works on mobile)
+  const parseDate = (value) => {
+    const [y, m, d] = value.split('-').map(Number);
+    return new Date(y, m - 1, d);
   };
 
-  // Convert any date to "YYYY-MM-DD" in Asia/Dhaka timezone
-  const getDhakaKey = (date) => {
-    const d = new Date(date);
-    const fmt = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Dhaka',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-    return fmt.format(d); // → "2025-10-14"
-  };
-
-  // Format readable submission date+time from timestamp (Column A)
+  // Format timestamp (Column A) simply
   const formatDateTime = (timestamp) => {
     if (!timestamp) return '';
-    const d = new Date(timestamp);
-    const dateStr = new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Asia/Dhaka',
+    const date = new Date(timestamp);
+    return date.toLocaleString('en-GB', {
       day: '2-digit',
       month: 'short',
       year: '2-digit',
-    }).format(d);
-    const timeStr = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Dhaka',
       hour: '2-digit',
       minute: '2-digit',
       hour12: true,
-    }).format(d);
-    return `${dateStr}, ${timeStr.replace(/([ap])m/i, (m) => m.toUpperCase())}`;
+    });
   };
 
-  // ---------- Render cards ----------
-
+  // Render meals
   const renderMeals = (meals) => {
     mealsContainer.innerHTML = '';
 
-    if (!meals?.length) {
+    if (!meals || meals.length === 0) {
       totalBookingsEl.textContent = '0';
       const noMealsCard = document.createElement('div');
       noMealsCard.className = 'card no-meals-card';
@@ -68,76 +46,71 @@ document.addEventListener('DOMContentLoaded', () => {
 
     totalBookingsEl.textContent = meals.length;
 
-    meals
-      .sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0))
-      .forEach((meal, index) => {
-        const card = document.createElement('div');
-        card.className = 'card meal-card';
+    meals.forEach((meal, index) => {
+      const card = document.createElement('div');
+      card.className = 'card meal-card';
 
-        const serialChip = document.createElement('span');
-        serialChip.className = 'serial-chip';
-        serialChip.textContent = index + 1;
-        card.appendChild(serialChip);
+      const serialChip = document.createElement('span');
+      serialChip.className = 'serial-chip';
+      serialChip.textContent = index + 1;
+      card.appendChild(serialChip);
 
-        const mealContent = document.createElement('p');
-        const submission = formatDateTime(meal.timestamp);
-        mealContent.innerHTML = `
-          <strong>${meal.name || ''}</strong><br>
-          <small>Submitted: ${submission}</small>
-        `;
-        card.appendChild(mealContent);
+      const mealContent = document.createElement('p');
+      mealContent.innerHTML = `
+        <strong>${meal.name || ''}</strong><br>
+        <small>Submitted: ${formatDateTime(meal.timestamp)}</small>
+      `;
+      card.appendChild(mealContent);
 
-        mealsContainer.appendChild(card);
-      });
+      mealsContainer.appendChild(card);
+    });
   };
 
-  // ---------- Filter logic ----------
-
+  // Filter by bookingDate (Column D)
   const filterMealsByDate = (selectedDate) => {
     if (!dataLoaded) {
-      mealsContainer.innerHTML = '<p>Loading data...</p>';
+      mealsContainer.innerHTML = '';
+      const noMealsCard = document.createElement('div');
+      noMealsCard.className = 'card no-meals-card';
+      noMealsCard.innerHTML = '<p>Loading data...</p><div class="loading-indicator"></div>';
+      mealsContainer.appendChild(noMealsCard);
       totalBookingsEl.textContent = '...';
+      document.querySelector('.total-bookings-card').style.display = 'none';
       return;
     }
 
-    // Always parse manually to avoid locale issues on mobile
-    const picked = parseISODate(selectedDate);
-    if (isNaN(picked)) {
-      mealsContainer.innerHTML = '<p>Invalid date selected.</p>';
-      totalBookingsEl.textContent = '0';
-      return;
-    }
-
-    const pickedKey = getDhakaKey(picked);
-
+    const picked = parseDate(selectedDate);
     const filtered = allMeals.filter((meal) => {
       if (!meal.bookingDate) return false;
-      const bookingKey = getDhakaKey(meal.bookingDate);
-      return bookingKey === pickedKey;
+      const bookingDate = new Date(meal.bookingDate);
+      return (
+        bookingDate.getFullYear() === picked.getFullYear() &&
+        bookingDate.getMonth() === picked.getMonth() &&
+        bookingDate.getDate() === picked.getDate()
+      );
     });
 
-    console.log('📅 Selected:', selectedDate, '→ Key:', pickedKey, 'Matched:', filtered.length);
+    filtered.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     renderMeals(filtered);
   };
 
-  // ---------- Load data from Apps Script (JSONP) ----------
-
+  // Load all data (JSONP)
   const loadAllMeals = () => {
-    mealsContainer.innerHTML = '<p>Loading data...</p>';
+    const noMealsCard = document.createElement('div');
+    noMealsCard.className = 'card no-meals-card';
+    noMealsCard.innerHTML = '<p>Loading data...</p><div class="loading-indicator"></div>'; // Added loading indicator
+    mealsContainer.innerHTML = ''; // Clear previous content
+    mealsContainer.appendChild(noMealsCard);
     totalBookingsEl.textContent = '...';
+    document.querySelector('.total-bookings-card').style.display = 'none'; // Hide total meals card while loading
 
-    const callbackName = 'jsonp_cb_' + Math.round(Math.random() * 1e6);
+    const callbackName = 'jsonp_cb_' + Math.floor(Math.random() * 1e6);
 
     window[callbackName] = (data) => {
-      if (!Array.isArray(data)) {
-        mealsContainer.innerHTML = '<p>Invalid data received.</p>';
-        totalBookingsEl.textContent = '0';
-        return;
-      }
-
-      allMeals = data;
+      allMeals = Array.isArray(data) ? data : [];
       dataLoaded = true;
-      console.log('✅ Data fetched:', allMeals.length, 'rows');
+      document.querySelector('.total-bookings-card').style.display = 'block'; // Show total meals card after loading
+      renderMeals(allMeals);
       filterMealsByDate(datePicker.value);
 
       try { document.body.removeChild(script); } catch {}
@@ -147,14 +120,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const script = document.createElement('script');
     script.src = `${webAppUrl}?callback=${callbackName}`;
     script.onerror = () => {
-      mealsContainer.innerHTML = '<p>Error loading data. Check your Web App deployment.</p>';
+      const noMealsCard = document.createElement('div');
+      noMealsCard.className = 'card no-meals-card';
+      noMealsCard.innerHTML = '<p>Error loading data. Check your Web App deployment.</p>';
+      mealsContainer.appendChild(noMealsCard);
       totalBookingsEl.textContent = '0';
+      document.querySelector('.total-bookings-card').style.display = 'none'; // Hide total meals card
       delete window[callbackName];
     };
     document.body.appendChild(script);
   };
 
-  // ---------- Init ----------
+  // Init
   loadAllMeals();
   datePicker.addEventListener('change', (e) => filterMealsByDate(e.target.value));
 });
