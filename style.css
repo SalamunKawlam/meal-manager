@@ -98,6 +98,17 @@ h1 {
     gap: 1.5rem;
 }
 
+.meals-container .no-meals-card {
+  grid-column: 1 / -1;         /* Make it span all columns */
+  text-align: center;          /* Center text */
+  font-size: 1.1rem;           /* Slightly larger text */
+  padding: 2rem;               /* Give it space */
+  background-color: var(--background-color);      /* Keep consistent with other cards */
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 0px 0px var(--shadow-color);
+}
+
 .meal-card {
     padding: 1.5rem;
     text-align: left;
