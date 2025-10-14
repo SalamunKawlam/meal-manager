@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
       mealsContainer.innerHTML = '';
       const noMealsCard = document.createElement('div');
       noMealsCard.className = 'card no-meals-card';
-      noMealsCard.innerHTML = '<p>Loading data...</p><div class="loading-indicator"></div>';
+      noMealsCard.innerHTML = '<div class="loading-indicator"></div><p>Loading data...</p>';
       mealsContainer.appendChild(noMealsCard);
       totalBookingsEl.textContent = '...';
       document.querySelector('.total-bookings-card').style.display = 'none';
@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const loadAllMeals = () => {
     const noMealsCard = document.createElement('div');
     noMealsCard.className = 'card no-meals-card';
-    noMealsCard.innerHTML = '<p>Loading data...</p><div class="loading-indicator"></div>'; // Added loading indicator
+    noMealsCard.innerHTML = '<div class="loading-indicator"></div><p>Loading data...</p>'; // Loading indicator on top, text on bottom
     mealsContainer.innerHTML = ''; // Clear previous content
     mealsContainer.appendChild(noMealsCard);
     totalBookingsEl.textContent = '...';
