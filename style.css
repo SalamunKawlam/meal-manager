@@ -35,10 +35,9 @@ h1 {
 
 .controls {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
     align-items: center;
     margin-bottom: 2.5rem;
-    flex-wrap: wrap;
     gap: 1.5rem;
 }
 
@@ -47,11 +46,13 @@ h1 {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     font-size: 1rem;
+    font-family: 'Plus Jakarta Sans', sans-serif; /* Inherit the body font */
     background-color: var(--card-background);
     box-shadow: 0 1px 3px var(--shadow-color);
     transition: border-color 0.2s, box-shadow 0.2s;
-    flex-grow: 1;
-    max-width: 300px;
+    width: auto; /* Let the input size itself */
+    min-width: 250px; /* Provide a sensible minimum width */
+    box-sizing: border-box;
 }
 
 #date-picker:focus {
@@ -70,8 +71,11 @@ h1 {
 
 .total-bookings-card {
     text-align: center;
-    flex-grow: 1;
-    max-width: 300px;
+    width: 100%;
+    max-width: none;
+    background-color: #eaf2fa; /* Light blueish tint */
+    border-color: #c9dcec;
+    box-sizing: border-box;
 }
 
 .total-bookings-card h2 {
@@ -103,4 +107,15 @@ h1 {
     margin: 0;
     font-size: 1rem;
     line-height: 1.5;
+}
+
+.serial-chip {
+    display: inline-block;
+    background-color: var(--primary-color);
+    color: white;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0.25rem 0.6rem;
+    border-radius: 15px;
+    margin-bottom: 0.75rem;
 }

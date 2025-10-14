@@ -1,36 +1,27 @@
-function doGet() {
+function doGet(e) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const data = sheet.getDataRange().getValues();
-  
-  const rawHeaders = data.shift();
-  const timezone = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
-  
-  // Format headers to match the "d MMM, yy" format from the frontend.
-  const headers = rawHeaders.map(header => {
-    if (header instanceof Date) {
-      // This is the line that formats the date correctly.
-      return Utilities.formatDate(header, timezone, "d MMM, yy");
-    } else if (typeof header === 'string') {
-      return header.trim();
+  // Get data only from columns A and B, starting from row 2 to the last row.
+  const range = sheet.getRange("A2:B" + sheet.getLastRow());
+  const values = range.getValues();
+
+  const data = values.map(row => {
+    // Ensure we don't process empty rows
+    if (row[0] || row[1]) {
+      return {
+        timestamp: row[0], // Column A
+        name: row[1]       // Column B
+      };
     }
-    return header;
-  });
+  }).filter(item => item); // Filter out any empty rows that might have been processed
 
-  const columns = {};
-  headers.forEach(header => {
-    if (header) {
-      columns[header] = [];
-    }
-  });
-
-  data.forEach(row => {
-    headers.forEach((header, index) => {
-      if (header && row[index]) {
-        columns[header].push(row[index]);
-      }
-    });
-  });
-
-  return ContentService.createTextOutput(JSON.stringify(columns))
-    .setMimeType(ContentService.MimeType.JSON);
+  // Safely handle the JSONP callback
+  const callback = e && e.parameter ? e.parameter.callback : null;
+  if (callback) {
+    return ContentService.createTextOutput(`${callback}(${JSON.stringify(data)})`)
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  } else {
+    // Fallback for direct access or non-JSONP requests
+    return ContentService.createTextOutput(JSON.stringify(data))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
 }
