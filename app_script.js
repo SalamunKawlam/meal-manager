@@ -1,27 +1,31 @@
 function doGet(e) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  // Get data only from columns A and B, starting from row 2 to the last row.
-  const range = sheet.getRange("A2:B" + sheet.getLastRow());
+  const SHEET_NAME = "Form Responses 1";
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  // const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+
+  // A=Timestamp, B=Name, D=Booking Date
+  const range = sheet.getRange("A2:D" + sheet.getLastRow());
   const values = range.getValues();
 
-  const data = values.map(row => {
-    // Ensure we don't process empty rows
-    if (row[0] || row[1]) {
-      return {
-        timestamp: row[0], // Column A
-        name: row[1]       // Column B
-      };
-    }
-  }).filter(item => item); // Filter out any empty rows that might have been processed
+  const rows = values.map(row => {
+    const [timestamp, name, , bookingDate] = row;
+    if (!name) return null; // skip empty name rows
+    return {
+      timestamp: timestamp || null,     // Date or null
+      name: name,                       // string
+      bookingDate: bookingDate || null  // Date or null
+    };
+  }).filter(Boolean);
 
-  // Safely handle the JSONP callback
-  const callback = e && e.parameter ? e.parameter.callback : null;
-  if (callback) {
-    return ContentService.createTextOutput(`${callback}(${JSON.stringify(data)})`)
+  const payload = JSON.stringify(rows);
+  const cb = e && e.parameter && e.parameter.callback;
+
+  if (cb) {
+    return ContentService
+      .createTextOutput(`${cb}(${payload})`)
       .setMimeType(ContentService.MimeType.JAVASCRIPT);
-  } else {
-    // Fallback for direct access or non-JSONP requests
-    return ContentService.createTextOutput(JSON.stringify(data))
-      .setMimeType(ContentService.MimeType.JSON);
   }
+  return ContentService
+    .createTextOutput(payload)
+    .setMimeType(ContentService.MimeType.JSON);
 }

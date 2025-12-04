@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderMeals(filtered);
   };
 
-  // Load all data (JSONP)
+  // Load all data (Fetch API)
   const loadAllMeals = () => {
     const noMealsCard = document.createElement('div');
     noMealsCard.className = 'card no-meals-card';
@@ -104,31 +104,25 @@ document.addEventListener('DOMContentLoaded', () => {
     totalBookingsEl.textContent = '...';
     document.querySelector('.total-bookings-card').style.display = 'none'; // Hide total meals card while loading
 
-    const callbackName = 'jsonp_cb_' + Math.floor(Math.random() * 1e6);
-
-    window[callbackName] = (data) => {
-      allMeals = Array.isArray(data) ? data : [];
-      dataLoaded = true;
-      document.querySelector('.total-bookings-card').style.display = 'block'; // Show total meals card after loading
-      renderMeals(allMeals);
-      filterMealsByDate(datePicker.value);
-
-      try { document.body.removeChild(script); } catch {}
-      delete window[callbackName];
-    };
-
-    const script = document.createElement('script');
-    script.src = `${webAppUrl}?callback=${callbackName}`;
-    script.onerror = () => {
-      const noMealsCard = document.createElement('div');
-      noMealsCard.className = 'card no-meals-card';
-      noMealsCard.innerHTML = '<p>Error loading data. Check your Web App deployment.</p>';
-      mealsContainer.appendChild(noMealsCard);
-      totalBookingsEl.textContent = '0';
-      document.querySelector('.total-bookings-card').style.display = 'none'; // Hide total meals card
-      delete window[callbackName];
-    };
-    document.body.appendChild(script);
+    fetch(webAppUrl)
+      .then((response) => response.json())
+      .then((data) => {
+        allMeals = Array.isArray(data) ? data : [];
+        dataLoaded = true;
+        document.querySelector('.total-bookings-card').style.display = 'block'; // Show total meals card after loading
+        renderMeals(allMeals);
+        filterMealsByDate(datePicker.value);
+      })
+      .catch((error) => {
+        console.error('Error loading data:', error);
+        mealsContainer.innerHTML = '';
+        const noMealsCard = document.createElement('div');
+        noMealsCard.className = 'card no-meals-card';
+        noMealsCard.innerHTML = '<p>Error loading data. Check your Web App deployment.</p>';
+        mealsContainer.appendChild(noMealsCard);
+        totalBookingsEl.textContent = '0';
+        document.querySelector('.total-bookings-card').style.display = 'none'; // Hide total meals card
+      });
   };
 
   // Init
